@@ -1,112 +1,128 @@
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
+
+const SIZE_LABELS = ["S", "M", "L", "XL", "XXL"];
 
 const PRODUCTS = [
-  "T-Shirt",
-  "Long Sleeve",
-  "Crewneck Sweatshirt",
-  "Pullover Hoodie",
-  "Zip Hoodie",
-  "Quarter Zip",
-  "Mock Neck Hoodie",
-  "Varsity Jacket",
-  "Windbreaker",
-  "Denim Jacket",
-  "Track Jacket",
-  "Crop Hoodie"
+  {
+    id: "tshirt",
+    name: "T-Shirt",
+    price: 22,
+    colors: [
+      { name: "Black", value: "#111", image: "https://placehold.co/600x700/111/fff?text=T-Shirt" },
+      { name: "White", value: "#f5f5f5", image: "https://placehold.co/600x700/f5f5f5/111?text=T-Shirt" },
+      { name: "Forest", value: "#1f2d24", image: "https://placehold.co/600x700/1f2d24/fff?text=T-Shirt" },
+    ],
+  },
+  {
+    id: "hoodie",
+    name: "Hoodie",
+    price: 38,
+    colors: [
+      { name: "Black", value: "#111", image: "https://placehold.co/600x700/111/fff?text=Hoodie" },
+      { name: "Gray", value: "#d9d9d9", image: "https://placehold.co/600x700/d9d9d9/111?text=Hoodie" },
+    ],
+  },
 ];
 
-export default function NaqshClothingCustomizer() {
-  const [selectedProduct, setSelectedProduct] = useState(PRODUCTS[0]);
-  const [color, setColor] = useState("#222222");
-  const [sizes, setSizes] = useState({ S: 0, M: 0, L: 0, XL: 0 });
-  const [designFile, setDesignFile] = useState(null);
+function getInitial(products) {
+  const colors = {};
+  const sizes = {};
 
-  const handleSizeChange = (size, value) => {
-    setSizes({ ...sizes, [size]: parseInt(value) || 0 });
-  };
+  products.forEach((p) => {
+    colors[p.id] = 0;
+    sizes[p.id] = {};
+    SIZE_LABELS.forEach((s) => (sizes[p.id][s] = 0));
+  });
+
+  return { colors, sizes };
+}
+
+export default function App() {
+  const init = useMemo(() => getInitial(PRODUCTS), []);
+  const [colorIndex, setColorIndex] = useState(init.colors);
+  const [quantities, setQuantities] = useState(init.sizes);
+  const [cart, setCart] = useState([]);
+
+  function updateQty(productId, size, val) {
+    setQuantities((prev) => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [size]: Math.max(0, Number(val) || 0),
+      },
+    }));
+  }
+
+  function addToCart(product) {
+    const color = product.colors[colorIndex[product.id]];
+    const sizes = quantities[product.id];
+    const total = Object.values(sizes).reduce((a, b) => a + b, 0);
+
+    if (!total) return;
+
+    setCart((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: product.name,
+        color: color.name,
+        image: color.image,
+        sizes,
+        total,
+        price: product.price,
+      },
+    ]);
+  }
 
   return (
-    <div style={{ fontFamily: "sans-serif", padding: "30px", background: "#dddddd" }}>
-      
-      <h1 style={{ color: "#222222" }}>NAQSH Clothing</h1>
-      <p style={{ color: "#575454" }}>Leave your mark.</p>
+    <div style={{ fontFamily: "Arial", background: "#fafafa", padding: 30 }}>
+      <h1 style={{ fontSize: 40 }}>NAQSH</h1>
 
-      {/* Product Selection */}
-      <h3>Select Product</h3>
-      <select
-        value={selectedProduct}
-        onChange={(e) => setSelectedProduct(e.target.value)}
-      >
-        {PRODUCTS.map((p) => (
-          <option key={p}>{p}</option>
-        ))}
-      </select>
+      {PRODUCTS.map((product) => {
+        const color = product.colors[colorIndex[product.id]];
+        const sizes = quantities[product.id];
 
-      {/* Color Picker */}
-      <h3>Pick Color</h3>
-      <input
-        type="color"
-        value={color}
-        onChange={(e) => setColor(e.target.value)}
-      />
+        return (
+          <div key={product.id} style={{ marginTop: 40 }}>
+            <h2>{product.name}</h2>
 
-      {/* Mockup */}
-      <div
-        style={{
-          marginTop: "20px",
-          width: "250px",
-          height: "250px",
-          background: color,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontWeight: "bold",
-          borderRadius: "10px"
-        }}
-      >
-        {selectedProduct}
-      </div>
+            <img src={color.image} width={250} />
 
-      {/* Sizes */}
-      <h3>Sizes</h3>
-      {["S", "M", "L", "XL"].map((size) => (
-        <div key={size}>
-          {size}:{" "}
-          <input
-            type="number"
-            min="0"
-            onChange={(e) => handleSizeChange(size, e.target.value)}
-          />
+            <div style={{ marginTop: 10 }}>
+              {product.colors.map((c, i) => (
+                <button key={i} onClick={() =>
+                  setColorIndex((prev) => ({ ...prev, [product.id]: i }))
+                }>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              {SIZE_LABELS.map((s) => (
+                <input
+                  key={s}
+                  type="number"
+                  placeholder={s}
+                  onChange={(e) => updateQty(product.id, s, e.target.value)}
+                />
+              ))}
+            </div>
+
+            <button onClick={() => addToCart(product)}>
+              Add to Cart
+            </button>
+          </div>
+        );
+      })}
+
+      <h2 style={{ marginTop: 50 }}>Cart</h2>
+
+      {cart.map((item) => (
+        <div key={item.id}>
+          {item.name} ({item.color}) - {item.total} items
         </div>
       ))}
-
-      {/* Upload */}
-      <h3>Upload Design</h3>
-      <input
-        type="file"
-        onChange={(e) => setDesignFile(e.target.files[0])}
-      />
-
-      {/* Contact */}
-      <h3>Contact</h3>
-      <p>Email: orders.naqshclothing@gmail.com</p>
-      <p>Phone: 470-851-4486</p>
-
-      {/* Submit */}
-      <button
-        style={{
-          marginTop: "20px",
-          padding: "10px 20px",
-          background: "#222222",
-          color: "white",
-          border: "none",
-          borderRadius: "5px"
-        }}
-        onClick={() => alert("Order submitted (we'll contact you!)")}
-      >
-        Submit Order
-      </button>
     </div>
   );
 }
